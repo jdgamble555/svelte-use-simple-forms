@@ -1,7 +1,7 @@
 import { getContext, hasContext, setContext } from "svelte";
 import { get, writable, type Writable } from "svelte/store";
 
-export type AllFormElements = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+export type FormControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 export type SimpleForm = {
     values: Record<string, string>,
@@ -42,8 +42,8 @@ export const useSimpleForm = (name = 'form') => {
             node.set(_node);
 
             const onNodeInput = (event: Event) => {
-                
-                const targetElement = event.target as AllFormElements;
+
+                const targetElement = event.target as FormControlElement;
 
                 if (targetElement.hasAttribute('data-simple-form-ignore')) {
                     return;
@@ -60,6 +60,7 @@ export const useSimpleForm = (name = 'form') => {
                     state
                 });
 
+                resetCustomValidity(_node);
             };
 
             _node.addEventListener('input', onNodeInput);
@@ -69,21 +70,18 @@ export const useSimpleForm = (name = 'form') => {
                     _node.removeEventListener('input', onNodeInput);
                 }
             }
-
         },
-        reset: () => node.update((node) => {
-            node.reset();
-            return node;
-        }),
+        reset: () => {
+            get(node).reset();
+        },
         data,
         customValidator: (
-            element: AllFormElements,
+            element: FormControlElement,
             callback: (
-                el: AllFormElements,
+                el: FormControlElement,
                 data: Record<string, string>
             ) => string | null
         ) => {
-
             const oninput = () => {
                 const _data = getFormValues(get(node));
                 const valid = callback(element, _data);
@@ -109,7 +107,7 @@ export const useSimpleForm = (name = 'form') => {
 const getFormValues = (node: HTMLFormElement) => {
     const values: Record<string, string> = {};
     for (let i = 0; i < node.elements.length; ++i) {
-        const element = node.elements[i] as AllFormElements;
+        const element = node.elements[i] as FormControlElement;
 
         // only form control elements
         if (
@@ -130,9 +128,8 @@ const getFormElements = (node: HTMLFormElement, name: string) => {
     const valid: string[] = [];
     const errors: Record<string, { state: string; message: string }[]> = {};
 
-
     for (let i = 0; i < node.elements.length; ++i) {
-        const element = node.elements[i] as AllFormElements;
+        const element = node.elements[i] as FormControlElement;
 
         // only form control elements
         if (
@@ -196,6 +193,23 @@ const getFormContext = (name: string) => {
 
     return context;
 };
+
+const resetCustomValidity = (node: HTMLFormElement) => {
+
+    for (let i = 0; i < node.elements.length; ++i) {
+        const element = node.elements[i] as FormControlElement;
+
+        // only form control elements
+        if (
+            !element.name
+            || element.type === 'reset'
+            || element.type === 'submit'
+        ) {
+            continue;
+        }
+        element.setCustomValidity('');
+    }
+}
 
 
 
