@@ -1,5 +1,5 @@
 import { getContext, hasContext, setContext } from "svelte";
-import { writable, type Writable } from "svelte/store";
+import { get, writable, type Writable } from "svelte/store";
 
 export type AllFormElements = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
@@ -17,6 +17,20 @@ export type SimpleForm = {
     }
 };
 
+const validityStates = [
+    'badInput',
+    'customError',
+    'patternMismatch',
+    'rangeOverflow',
+    'rangeUnderflow',
+    'stepMismatch',
+    'tooLong',
+    'tooShort',
+    'typeMismatch',
+    'valid',
+    'valueMissing'
+];
+
 export const useSimpleForm = (name = 'form') => {
 
     const { node, data } = getFormContext(name);
@@ -24,10 +38,11 @@ export const useSimpleForm = (name = 'form') => {
     return {
 
         simple: (_node: HTMLFormElement) => {
+
             node.set(_node);
 
-            _node.oninput = (event: Event) => {
-
+            const onNodeInput = (event: Event) => {
+                
                 const targetElement = event.target as AllFormElements;
 
                 if (targetElement.hasAttribute('data-simple-form-ignore')) {
@@ -44,7 +59,16 @@ export const useSimpleForm = (name = 'form') => {
                     errors,
                     state
                 });
+
             };
+
+            _node.addEventListener('input', onNodeInput);
+
+            return {
+                destory: () => {
+                    _node.removeEventListener('input', onNodeInput);
+                }
+            }
 
         },
         reset: () => node.update((node) => {
@@ -54,21 +78,51 @@ export const useSimpleForm = (name = 'form') => {
         data,
         customValidator: (
             element: AllFormElements,
-            callback: (el: AllFormElements) => string | null
+            callback: (
+                el: AllFormElements,
+                data: Record<string, string>
+            ) => string | null
         ) => {
-            element.oninput = () => {
-                const valid = callback(element);
+
+            const oninput = () => {
+                const _data = getFormValues(get(node));
+                const valid = callback(element, _data);
                 if (valid && !element.validationMessage) {
                     element.setCustomValidity(valid);
                 } else {
                     element.setCustomValidity('');
                 }
             };
+
+            element.addEventListener('input', oninput);
+
+            return {
+                update: () => { },
+                destory: () => {
+                    element.removeEventListener('input', oninput);
+                }
+            }
         }
     }
 };
 
-// check validity without calling verifiy?
+const getFormValues = (node: HTMLFormElement) => {
+    const values: Record<string, string> = {};
+    for (let i = 0; i < node.elements.length; ++i) {
+        const element = node.elements[i] as AllFormElements;
+
+        // only form control elements
+        if (
+            !element.name
+            || element.type === 'reset'
+            || element.type === 'submit'
+        ) {
+            continue;
+        }
+        values[element.name] = element.value;
+    }
+    return values;
+};
 
 const getFormElements = (node: HTMLFormElement, name: string) => {
     const values: Record<string, string> = {};
@@ -76,55 +130,45 @@ const getFormElements = (node: HTMLFormElement, name: string) => {
     const valid: string[] = [];
     const errors: Record<string, { state: string; message: string }[]> = {};
 
-    const validityStates = [
-        'badInput',
-        'customError',
-        'patternMismatch',
-        'rangeOverflow',
-        'rangeUnderflow',
-        'stepMismatch',
-        'tooLong',
-        'tooShort',
-        'typeMismatch',
-        'valid',
-        'valueMissing'
-    ];
 
     for (let i = 0; i < node.elements.length; ++i) {
         const element = node.elements[i] as AllFormElements;
 
-        // form elements
-        if (element.name) {
-            if (
-                element.type !== 'submit'
-                && element.type !== 'reset'
-                && element.name
-            ) {
-                values[element.name] = element.value;
-            }
+        // only form control elements
+        if (
+            !element.name
+            || element.type === 'reset'
+            || element.type === 'submit'
+        ) {
+            continue;
+        }
 
-            // validity
-            if (element.validity.valid) {
-                valid.push(element.name);
-            } else {
-                const errorMessages = validityStates
-                    .filter(state => element.validity[state as keyof ValidityState])
-                    .map(state => ({
-                        state,
-                        message: element.validationMessage,
-                    }));
+        values[element.name] = element.value;
 
-                if (errorMessages.length > 0) {
-                    errors[element.name] = errorMessages;
-                }
-            }
+        // touched
+        if (element.hasAttribute(`data-touched-${name}`)) {
+            touched.push(element.name);
+        }
 
-            if (element.hasAttribute(`data-touched-${name}`)) {
-                touched.push(element.name);
-            }
+        // validity
+        if (element.validity.valid) {
+            valid.push(element.name);
+            continue;
+        }
+
+        const errorMessages = validityStates
+            .filter(state => element.validity[state as keyof ValidityState])
+            .map(state => ({
+                state,
+                message: element.validationMessage
+            }));
+
+        if (errorMessages.length > 0) {
+            errors[element.name] = errorMessages;
         }
     }
 
+    // form state
     const state = {
         touched: touched.length > 0,
         valid: Object.keys(values).length === Object.keys(valid).length
