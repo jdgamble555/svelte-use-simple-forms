@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { useSimpleForm, type FormControlElement } from '$lib/use-simple-form';
+	import { useSimpleForm, type FormDataElement } from '$lib/use-simple-form';
 
 	const { customValidator } = useSimpleForm();
 
 	const customMsg = 'The password fields must match!';
 
-	const passwordValidator = (el: FormControlElement, data: Record<string, string>) => {
-		return el.value === data['passwordConfirm'] ? null : customMsg;
+	const passwordValidator = (element: FormDataElement, data: Record<string, string>) => {
+		return element.value === data['passwordConfirm'] ? null : customMsg;
 	};
-	const passwordConfirmValidator = (el: FormControlElement, data: Record<string, string>) => {
-		return el.value === data['password'] ? null : customMsg;
+	const passwordConfirmValidator = (element: FormDataElement, data: Record<string, string>) => {
+		return element.value === data['password'] ? null : customMsg;
 	};
 </script>
 
