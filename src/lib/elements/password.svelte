@@ -14,14 +14,14 @@
 </script>
 
 <input
-	class="border-2 mt-3"
+	class="mt-3 border-2 outline-none data-[touched]:invalid:border-red-500"
 	name="password"
 	type="password"
 	required
 	use:customValidator={passwordValidator}
 />
 <input
-	class="border-2 mt-3"
+	class="border-2 mt-3 outline-none data-[touched]:invalid:border-red-500"
 	name="passwordConfirm"
 	type="password"
 	required

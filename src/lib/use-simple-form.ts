@@ -39,25 +39,43 @@ const validityStates: (keyof ValidityState)[] = [
 
 export const useSimpleForm = (name = 'form') => {
 
-    const { node, data } = getFormContext(name);
+    const { node, data, validity } = getFormContext(name);
 
     return {
 
         simple: (_node: HTMLFormElement) => {
 
+            // manually handle validation before submit
+            _node.setAttribute('novalidate', '');
+
             node.set(_node);
+
+            const onFormSumbit = (event: Event) => {
+                event.preventDefault();
+                setAllTouched(_node);
+                if (!_node.reportValidity()) {
+                    return false;
+                }
+                removeAllTouched(_node);      
+            };
 
             const onNodeInput = (event: Event) => {
 
+                // check custom validators
+                const fns = get(validity);
+                for (const fn of fns) {
+                    fn();
+                }
+
                 const targetElement = event.target as FormDataElement;
 
-                if (targetElement.hasAttribute('data-simple-form-ignore')) {
+                targetElement.setAttribute('data-touched', '');
+
+                if (targetElement.hasAttribute('data-ignore')) {
                     return;
                 }
 
-                targetElement.setAttribute(`data-touched-${name}`, '');
-
-                const { values, touched, valid, errors, state } = getFormElements(_node, name);
+                const { values, touched, valid, errors, state } = getFormElements(_node);
                 data.set({
                     values,
                     touched,
@@ -65,15 +83,15 @@ export const useSimpleForm = (name = 'form') => {
                     errors,
                     state
                 });
-
-                resetCustomValidity(_node);
             };
 
+            _node.addEventListener('submit', onFormSumbit);
             _node.addEventListener('input', onNodeInput);
 
             return {
                 destory: () => {
                     _node.removeEventListener('input', onNodeInput);
+                    _node.removeEventListener('submit', onFormSumbit);
                 }
             }
         },
@@ -97,16 +115,43 @@ export const useSimpleForm = (name = 'form') => {
                 }
                 element.setCustomValidity('');
             };
-
-            element.addEventListener('input', onElementInput);
-
-            return {
-                update: () => { },
-                destory: () => {
-                    element.removeEventListener('input', onElementInput);
-                }
-            }
+            validity.update((fn) => (fn.push(onElementInput), fn));
         }
+    }
+};
+
+const getFormContext = (name: string) => {
+
+    type FormContext = {
+        node: Writable<HTMLFormElement>;
+        data: Writable<SimpleForm>;
+        validity: Writable<Array<() => void>>
+    };
+
+    if (hasContext(name)) {
+        return getContext<FormContext>(name);
+    }
+    const context: FormContext = {
+        node: writable(),
+        data: writable(),
+        validity: writable([])
+    };
+    setContext(name, context);
+
+    return context;
+};
+
+const setAllTouched = (node: HTMLFormElement) => {
+    const formDataElements = getFormDataElements(node);
+    for (const element of formDataElements) {
+        element.setAttribute('data-touched', '');
+    }
+};
+
+const removeAllTouched = (node: HTMLFormElement) => {
+    const formDataElements = getFormDataElements(node);
+    for (const element of formDataElements) {
+        element.removeAttribute('data-touched');
     }
 };
 
@@ -118,11 +163,11 @@ const getFormValues = (formDataElements: FormDataElement[]) => {
     return values;
 };
 
-const getFormElements = (node: HTMLFormElement, name: string) => {
+const getFormElements = (node: HTMLFormElement) => {
 
     const formDataElements = getFormDataElements(node);
     const values = getFormValues(formDataElements);
-    const touched = getTouchedElementNames(formDataElements, name);
+    const touched = getTouchedElementNames(formDataElements);
     const { errors, valid } = getFormElementsValidity(formDataElements);
 
     // form state
@@ -132,34 +177,6 @@ const getFormElements = (node: HTMLFormElement, name: string) => {
     };
     return { values, touched, valid, errors, state };
 };
-
-
-const getFormContext = (name: string) => {
-
-    type FormContext = {
-        node: Writable<HTMLFormElement>;
-        data: Writable<SimpleForm>
-    };
-
-    if (hasContext(name)) {
-        return getContext<FormContext>(name);
-    }
-    const context: FormContext = {
-        node: writable(),
-        data: writable(),
-    };
-    setContext(name, context);
-
-    return context;
-};
-
-const resetCustomValidity = (node: HTMLFormElement) => {
-    const elements = getFormDataElements(node);
-    elements.forEach((element) => {
-        element.setCustomValidity('');
-    });
-}
-
 
 const isFormDataElement = (element: Element): element is FormDataElement => {
     return element instanceof HTMLInputElement ||
@@ -172,7 +189,7 @@ const getFormDataElements = (node: HTMLFormElement): FormDataElement[] => {
     for (const element of node.elements) {
         if (
             isFormDataElement(element)
-            && !element.hasAttribute('data-simple-form-ignore')
+            && !element.hasAttribute('data-ignore')
             && element.name
         ) {
             dataElements.push(element);
@@ -181,10 +198,10 @@ const getFormDataElements = (node: HTMLFormElement): FormDataElement[] => {
     return dataElements;
 }
 
-const getTouchedElementNames = (formDataElements: FormDataElement[], name: string) => {
+const getTouchedElementNames = (formDataElements: FormDataElement[]) => {
     const touched = [];
     for (const element of formDataElements) {
-        if (element.hasAttribute(`data-touched-${name}`)) {
+        if (element.hasAttribute('data-touched')) {
             touched.push(element.name);
         }
     }

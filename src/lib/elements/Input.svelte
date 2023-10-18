@@ -3,7 +3,17 @@
 </script>
 
 <ChipInput />
-<input class="border-2 mt-3" name="buddy" value={'fart@me.com'} type="email" required />
-<textarea class="border-2 mt-3" name="text" value={'slslslslslsl\nslslsl'} minlength="3" required />
-
-
+<input
+	class="mt-3 border-2 outline-none data-[touched]:invalid:border-red-500"
+	name="buddy"
+	value={'fart@'}
+	type="email"
+	required
+/>
+<textarea
+	class="mt-3 border-2 outline-none data-[touched]:invalid:border-red-500"
+	name="text"
+	value={'slslslslslsl\nslslsl'}
+	minlength="3"
+	required
+/>

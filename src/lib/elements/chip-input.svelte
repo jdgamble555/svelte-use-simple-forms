@@ -8,5 +8,9 @@
 	}
 </script>
 
-<input class="border-2 mt-3" on:input={handleInput} data-simple-form-ignore />
+<input
+	class="mt-3 border-2 outline-none data-[touched]:invalid:border-red-500"
+	on:input={handleInput}
+	data-ignore
+/>
 <input type="hidden" name="test" bind:this={secondInput} />
