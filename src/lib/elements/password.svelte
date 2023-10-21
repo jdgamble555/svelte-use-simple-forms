@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { useSimpleForm, type FormDataElement } from '$lib/use-simple-form';
+	import type { FormDataElement } from '$lib/simple-form';
+	import { useSimpleForm } from '$lib/use-simple-form';
 
 	const { customValidator } = useSimpleForm();
 
