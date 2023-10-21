@@ -4,16 +4,19 @@
 	import Password from '$lib/elements/password.svelte';
 	import { useSimpleForm } from '$lib/use-simple-form';
 
+	// snapshot - https://github.com/sveltejs/kit/issues/5478
+
 	const { simple } = useSimpleForm();
+
 </script>
 
 <p>My Form</p>
 
-<form use:simple>
+<form lang="es" use:simple>
 	<div class="flex flex-col items-start">
 		<Input />
 		<Password />
-		<button type="submit" class="border-4 mt-3">Submit</button>
+		<button type="submit" class="mt-3 border-4">Submit</button>
 	</div>
 </form>
 <FormDebug />

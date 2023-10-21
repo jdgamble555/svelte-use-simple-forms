@@ -1,5 +1,9 @@
+import { browser } from "$app/environment";
 import { getContext, hasContext, setContext } from "svelte";
 import { get, writable, type Writable } from "svelte/store";
+
+const TOUCHED = 'data-touched';
+const IGNORE = 'data-ignore';
 
 export type FormDataElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
@@ -34,8 +38,12 @@ const validityStates: (keyof ValidityState)[] = [
 // TODO - make customValidator an exported function
 // TODO - only validate touched controls
 // TODO - look into error being object not array
-// TODO - initial form value?
-// TODO - look into invalid state for red border on untouched
+// TODO - save intitial form state
+// TODO - add optional to non-required fields (opt.)
+
+
+// TODO - separate reactivity into use-simple-form... simple-form.ts
+// simple get / set methods, reactive to oninput
 
 export const useSimpleForm = (name = 'form') => {
 
@@ -45,53 +53,61 @@ export const useSimpleForm = (name = 'form') => {
 
         simple: (_node: HTMLFormElement) => {
 
-            // manually handle validation before submit
-            _node.setAttribute('novalidate', '');
+            let onNodeInput: (event: Event) => void;
+            let onFormSumbit: (event: Event) => void;
 
-            node.set(_node);
+            if (browser) {
 
-            const onFormSumbit = (event: Event) => {
-                event.preventDefault();
-                setAllTouched(_node);
-                if (!_node.reportValidity()) {
-                    return false;
-                }
-                removeAllTouched(_node);      
-            };
+                // manually handle validation before submit
+                _node.setAttribute('novalidate', '');
 
-            const onNodeInput = (event: Event) => {
+                node.set(_node);
 
-                // check custom validators
-                const fns = get(validity);
-                for (const fn of fns) {
-                    fn();
-                }
+                onFormSumbit = (event: Event) => {
+                    event.preventDefault();
+                    setAllTouched(_node);
+                    if (!_node.reportValidity()) {
+                        return false;
+                    }
+                    removeAllTouched(_node);
+                };
 
-                const targetElement = event.target as FormDataElement;
+                onNodeInput = (event: Event) => {
 
-                targetElement.setAttribute('data-touched', '');
+                    // check custom validators
+                    for (const validatorFunction of get(validity)) {
+                        validatorFunction();
+                    }
 
-                if (targetElement.hasAttribute('data-ignore')) {
-                    return;
-                }
+                    const targetElement = event.target as FormDataElement;
 
-                const { values, touched, valid, errors, state } = getFormElements(_node);
-                data.set({
-                    values,
-                    touched,
-                    valid,
-                    errors,
-                    state
-                });
-            };
+                    targetElement.setAttribute(TOUCHED, '');
 
-            _node.addEventListener('submit', onFormSumbit);
-            _node.addEventListener('input', onNodeInput);
+                    if (targetElement.hasAttribute(IGNORE)) {
+                        return;
+                    }
+
+                    const { values, touched, valid, errors, state } = getFormElements(_node);
+                    data.set({
+                        values,
+                        touched,
+                        valid,
+                        errors,
+                        state
+                    });
+                };
+                _node.addEventListener('submit', onFormSumbit);
+                _node.addEventListener('input', onNodeInput);
+            }
 
             return {
+                update: () => { },
                 destory: () => {
-                    _node.removeEventListener('input', onNodeInput);
-                    _node.removeEventListener('submit', onFormSumbit);
+                    if (browser) {
+                        _node.removeEventListener('input', onNodeInput);
+                        _node.removeEventListener('submit', onFormSumbit);
+                    }
+
                 }
             }
         },
@@ -144,14 +160,14 @@ const getFormContext = (name: string) => {
 const setAllTouched = (node: HTMLFormElement) => {
     const formDataElements = getFormDataElements(node);
     for (const element of formDataElements) {
-        element.setAttribute('data-touched', '');
+        element.setAttribute(TOUCHED, '');
     }
 };
 
 const removeAllTouched = (node: HTMLFormElement) => {
     const formDataElements = getFormDataElements(node);
     for (const element of formDataElements) {
-        element.removeAttribute('data-touched');
+        element.removeAttribute(TOUCHED);
     }
 };
 
@@ -170,7 +186,6 @@ const getFormElements = (node: HTMLFormElement) => {
     const touched = getTouchedElementNames(formDataElements);
     const { errors, valid } = getFormElementsValidity(formDataElements);
 
-    // form state
     const state = {
         touched: touched.length > 0,
         valid: Object.keys(values).length === Object.keys(valid).length
@@ -189,7 +204,7 @@ const getFormDataElements = (node: HTMLFormElement): FormDataElement[] => {
     for (const element of node.elements) {
         if (
             isFormDataElement(element)
-            && !element.hasAttribute('data-ignore')
+            && !element.hasAttribute(IGNORE)
             && element.name
         ) {
             dataElements.push(element);
@@ -201,7 +216,7 @@ const getFormDataElements = (node: HTMLFormElement): FormDataElement[] => {
 const getTouchedElementNames = (formDataElements: FormDataElement[]) => {
     const touched = [];
     for (const element of formDataElements) {
-        if (element.hasAttribute('data-touched')) {
+        if (element.hasAttribute(TOUCHED)) {
             touched.push(element.name);
         }
     }

@@ -4,6 +4,6 @@
 	const { data } = useSimpleForm();
 </script>
 
-{#if $data}
-	<pre>{JSON.stringify($data, null, 2)}</pre>
+{#if data}
+	<pre>{JSON.stringify($data, null, 2) || ''}</pre>
 {/if}
