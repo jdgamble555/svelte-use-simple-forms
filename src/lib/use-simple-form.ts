@@ -35,12 +35,13 @@ const validityStates: (keyof ValidityState)[] = [
     'valueMissing'
 ];
 
-// TODO - only validate touched controls
-// TODO - look into error being object not array
-// TODO - save intitial form state
-// TODO - add optional to non-required fields (opt.)
-// TODO - figure out chips input
 
+// TODO - look into error being object not array - 1
+// TODO - only validate touched controls - 2
+// TODO - figure out chips input - 3
+// TODO - save intitial form state - 4
+
+// TODO - add optional to non-required fields (opt.)
 
 export const useSimpleForm = (name = 'form') => {
 
