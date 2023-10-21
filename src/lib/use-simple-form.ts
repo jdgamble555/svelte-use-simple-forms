@@ -35,15 +35,12 @@ const validityStates: (keyof ValidityState)[] = [
     'valueMissing'
 ];
 
-// TODO - make customValidator an exported function
 // TODO - only validate touched controls
 // TODO - look into error being object not array
 // TODO - save intitial form state
 // TODO - add optional to non-required fields (opt.)
+// TODO - figure out chips input
 
-
-// TODO - separate reactivity into use-simple-form... simple-form.ts
-// simple get / set methods, reactive to oninput
 
 export const useSimpleForm = (name = 'form') => {
 
